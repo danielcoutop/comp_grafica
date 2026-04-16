@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Algoritmo de De Casteljau de Bezier</title>
+    <style>
+        body { font-family: sans-serif; display:flex; flex-direction:column; align-items:center; background:#f4f6f8; }
+        canvas { background:white; border:1px solid #ccc; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+        .panel { margin:10px; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+    </style>
+</head>
+<body>
+
+<h3>Algoritmo de De Casteljau para Curvas de Bezier</h3>
+<canvas id="canvas" width="700" height="420"></canvas>
+
+<div class="panel">
+    tipo:
+    <select id="tipo">
+        <option value="Q">quadrática</option>
+        <option value="C">cúbica</option>
+    </select>
+
+    t: <span id="tval">0.00</span>
+    <input type="range" id="tslider" min="0" max="100" value="0">
+
+    <button id="reset">reset</button>
+</div>
+
+<div class="panel" id="conta"></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let pontos = [];
+let progresso = 0;
+let drag = null;
+
+function initPontos(){
+    if(tipo.value==='Q'){
+        pontos=[
+            {x:100,y:300,name:'P0'},
+            {x:350,y:80,name:'P1'},
+            {x:600,y:300,name:'P2'}
+        ];
+    } else {
+        pontos=[
+            {x:80,y:300,name:'P0'},
+            {x:220,y:80,name:'P1'},
+            {x:480,y:80,name:'P2'},
+            {x:620,y:300,name:'P3'}
+        ];
+    }
+}
+
+function lerp(p0,p1,t){
+    return {
+        x:(1-t)*p0.x + t*p1.x,
+        y:(1-t)*p0.y + t*p1.y
+    }
+}
+
+function casteljau(points,t){
+    let levels=[points];
+
+    while(points.length>1){
+        let next=[];
+        for(let i=0;i<points.length-1;i++){
+            let p=lerp(points[i],points[i+1],t);
+            if(points.length === 2){
+
+            p.name = (tipo.value === 'Q' ? 'Q' : 'C') + `(${t.toFixed(2)})`;
+} else if(points.length === 3 && tipo.value === 'C'){
+
+    p.name = `Q${i}`;
+} else {
+
+    p.name = `L${levels.length}_${i}`;
+}
+            next.push(p);
+        }
+        levels.push(next);
+        points=next;
+    }
+
+    return levels;
+}
+
+function drawLevels(levels){
+    ctx.setLineDash([5,5]);
+
+    levels.forEach((level,i)=>{
+        ctx.beginPath();
+        ctx.strokeStyle='gray';
+        ctx.moveTo(level[0].x,level[0].y);
+        for(let j=1;j<level.length;j++) ctx.lineTo(level[j].x,level[j].y);
+        ctx.stroke();
+
+        level.forEach(p=>{
+            ctx.fillStyle = (i===levels.length-1)?'black':'orange';
+            ctx.beginPath();
+            ctx.arc(p.x,p.y,4,0,Math.PI*2);
+            ctx.fill();
+
+            ctx.fillStyle='black';
+            ctx.fillText(p.name,p.x+6,p.y-6);
+        });
+    });
+
+    ctx.setLineDash([]);
+}
+
+function drawCurve(){
+    ctx.beginPath();
+    ctx.strokeStyle='blue';
+
+    for(let i=0;i<=100;i++){
+        let t=i/100;
+        let p = casteljau(pontos,t).at(-1)[0];
+        if(i===0) ctx.moveTo(p.x,p.y);
+        else ctx.lineTo(p.x,p.y);
+    }
+
+    ctx.stroke();
+}
+
+function drawControl(){
+    ctx.fillStyle='red';
+    pontos.forEach(p=>{
+        ctx.fillRect(p.x-4,p.y-4,8,8);
+        ctx.fillText(p.name,p.x+6,p.y-6);
+    });
+}
+
+function mostrarConta(t,levels){
+    let txt = `t = ${t.toFixed(2)}<br><br>`;
+
+    if(tipo.value === 'Q'){
+        txt += `<b>Quadrática:</b><br>`;
+        txt += `L₀(t) = (1 - t)P₀ + tP₁<br>`;
+        txt += `L₁(t) = (1 - t)P₁ + tP₂<br>`;
+        txt += `Q₀(t) = (1 - t)L₀(t) + tL₁(t)<br>`;
+    } else {
+        txt += `<b>Cúbica:</b><br>`;
+        txt += `L₀(t) = (1 - t)P₀ + tP₁<br>`;
+        txt += `L₁(t) = (1 - t)P₁ + tP₂<br>`;
+        txt += `L₂(t) = (1 - t)P₂ + tP₃<br><br>`;
+
+        txt += `Q₀(t) = (1 - t)L₀(t) + tL₁(t)<br>`;
+        txt += `Q₁(t) = (1 - t)L₁(t) + tL₂(t)<br><br>`;
+
+        txt += `C₀(t) = (1 - t)Q₀(t) + tQ₁(t)<br>`;
+    }
+
+    document.getElementById('conta').innerHTML = txt;
+}
+
+function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    let t=progresso;
+    tval.textContent=t.toFixed(2);
+
+    drawCurve();
+
+    let levels=casteljau([...pontos],t);
+    drawLevels(levels);
+    drawControl();
+
+    mostrarConta(t,levels);
+}
+
+// slider controla t
+const slider = document.getElementById('tslider');
+slider.oninput = () => {
+    progresso = slider.value / 100;
+    render();
+};
+
+canvas.onmousedown = e => {
+    let r=canvas.getBoundingClientRect();
+    let x=e.clientX-r.left, y=e.clientY-r.top;
+    pontos.forEach((p,i)=>{
+        if(Math.hypot(p.x-x,p.y-y)<10) drag=i;
+    });
+}
+
+canvas.onmousemove = e => {
+    if(drag!==null){
+        let r=canvas.getBoundingClientRect();
+        pontos[drag].x=e.clientX-r.left;
+        pontos[drag].y=e.clientY-r.top;
+        render();
+    }
+}
+
+canvas.onmouseup = ()=> drag=null;
+
+reset.onclick=()=>{ progresso=0; slider.value=0; initPontos(); render(); }
+
+tipo.onchange=()=>{ initPontos(); render(); }
+
+initPontos();
+render();
+</script>
+
+</body>
+</html>

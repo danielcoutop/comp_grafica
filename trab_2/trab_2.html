@@ -3,15 +3,74 @@
 <head>
     <title>Algoritmo de De Casteljau de Bezier</title>
     <style>
-        body { font-family: sans-serif; display:flex; flex-direction:column; align-items:center; background:#f4f6f8; }
-        canvas { background:white; border:1px solid #ccc; box-shadow:0 4px 12px rgba(0,0,0,0.1); }
-        .panel { margin:10px; padding:10px; background:white; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+        body {
+            font-family: sans-serif;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            background:#CAC5B0;
+            color:#444;
+        }
+
+        canvas {
+            background:#EBF481;
+            border:1px solid #F5C85C;
+            box-shadow:0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .panel {
+            margin:10px;
+            padding:10px;
+            background:#F58EEC;
+            border-radius:10px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.2);
+            color:#333;
+        }
+
+        select, input, button {
+            background:#F5C85C;
+            border:none;
+            border-radius:6px;
+            padding:4px;
+            color:#222;
+            font-weight:bold;
+        }
+
+        button:hover {
+            background:#C6FF90;
+            cursor:pointer;
+        }
+
+        .ref-panel {
+            max-width:700px;
+            font-size:14px;
+            line-height:1.5;
+
+            background: #C6FF90;
+            color:#222;
+            border:2px solid #C6FF90;
+}
+
+.ref-panel a {
+    color:#011140;
+    font-weight:bold;
+}
+
+.ref-panel h4 {
+    color:#333;
+}
     </style>
 </head>
+
+
 <body>
 
 <h3>Algoritmo de De Casteljau para Curvas de Bezier</h3>
 <canvas id="canvas" width="700" height="420"></canvas>
+
+<div class="panel" style="max-width:700px; font-size:14px;">
+    Arraste os pontos de controle para mudar a curva e ajuste <b>t</b> para ver as interpolações do algoritmo.
+</div>
 
 <div class="panel">
     tipo:
@@ -91,18 +150,18 @@ function drawLevels(levels){
 
     levels.forEach((level,i)=>{
         ctx.beginPath();
-        ctx.strokeStyle='gray';
+        ctx.strokeStyle='#F5C85C';
         ctx.moveTo(level[0].x,level[0].y);
         for(let j=1;j<level.length;j++) ctx.lineTo(level[j].x,level[j].y);
         ctx.stroke();
 
         level.forEach(p=>{
-            ctx.fillStyle = (i===levels.length-1)?'black':'orange';
+            ctx.fillStyle = (i===levels.length-1)?'#333':'#F58EEC';
             ctx.beginPath();
             ctx.arc(p.x,p.y,4,0,Math.PI*2);
             ctx.fill();
 
-            ctx.fillStyle='black';
+            ctx.fillStyle='#333';
             ctx.fillText(p.name,p.x+6,p.y-6);
         });
     });
@@ -112,7 +171,7 @@ function drawLevels(levels){
 
 function drawCurve(){
     ctx.beginPath();
-    ctx.strokeStyle='blue';
+    ctx.strokeStyle='#333';
 
     for(let i=0;i<=100;i++){
         let t=i/100;
@@ -125,7 +184,7 @@ function drawCurve(){
 }
 
 function drawControl(){
-    ctx.fillStyle='red';
+    ctx.fillStyle='#333';
     pontos.forEach(p=>{
         ctx.fillRect(p.x-4,p.y-4,8,8);
         ctx.fillText(p.name,p.x+6,p.y-6);
@@ -170,7 +229,6 @@ function render(){
     mostrarConta(t,levels);
 }
 
-// slider controla t
 const slider = document.getElementById('tslider');
 slider.oninput = () => {
     progresso = slider.value / 100;
@@ -205,4 +263,21 @@ render();
 </script>
 
 </body>
+<div class="panel ref-panel">
+    <h4>Referências</h4>
+
+    <ul>
+        <li>
+            SIMONI, Roberto. 
+            <i>Curvas e Superfícies em Computação Gráfica</i>. 
+            Universidade Federal de Santa Catarina.
+            p. 54–57.
+            <br>
+            <a href="https://repositorio.ufsc.br/bitstream/handle/123456789/96536/Roberto_Simoni.pdf?sequence=1" target="_blank">
+                Acessar documento
+            </a>
+        </li>
+
+    </ul>
+</div>
 </html>

@@ -1,1 +1,1 @@
-# comp_grafica
+Desafios e projetos de Computação Gráfica e Visualização

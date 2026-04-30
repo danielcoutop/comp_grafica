@@ -1,261 +1,301 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <title>Simulação Aerodinâmica: Vórtice de Ponta</title>
+    <meta charset="UTF-8">
+    <title>Simulador de Gás Ideal</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: #1a1a1a;
-            color: #eee;
-            margin: 0;
-            padding: 20px;
+            font-family: sans-serif;
+            display:flex;
+            flex-direction:column;
+            align-items:center;
+            background:#CAC5B0;
+            color:#444;
+            margin: 20px;
         }
 
         canvas {
-            background: #050505;
-            border: 2px solid #444;
-            border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .container {
-            max-width: 800px;
-            width: 100%;
+            background:#000;
+            border:4px solid #555;
+            box-shadow:0 4px 15px rgba(0,0,0,0.3);
+            cursor: crosshair;
         }
 
         .panel {
-            margin-top: 15px;
-            padding: 20px;
-            background: #2a2a2a;
-            border-radius: 8px;
-            border-left: 5px solid #00d4ff;
-        }
-
-        .controls {
+            margin:10px;
+            padding:15px;
+            background:#F58EEC;
+            border-radius:10px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.2);
+            color:#333;
             display: flex;
-            justify-content: space-around;
+            gap: 20px;
             align-items: center;
-            background: #333;
-            padding: 15px;
-            margin-top: 10px;
-            border-radius: 8px;
+            flex-wrap: wrap;
         }
 
-        .control-group {
+        .stats-container {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
+            gap: 15px;
         }
 
-        input[type="range"] {
-            width: 150px;
-            accent-color: #00d4ff;
+        .stat-box {
+            background: #EBF481;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #F5C85C;
+            min-width: 120px;
+            text-align: center;
         }
 
-        label {
+        .stat-label { font-size: 12px; font-weight: bold; display: block; }
+        .stat-value { font-size: 18px; font-family: monospace; }
+
+        select, input, button {
+            background:#F5C85C;
+            border:none;
+            border-radius:6px;
+            padding:6px;
+            color:#222;
+            font-weight:bold;
+        }
+
+        button:hover { background:#C6FF90; cursor:pointer; }
+        
+        .handle-hint {
+            color: #444;
             font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #aaa;
+            margin-top: 5px;
         }
-
-        h2 {
-            color: #00d4ff;
-            margin-bottom: 10px;
-        }
-
-        span { font-weight: bold; color: #fff; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Vórtice de Ponta de Asa</h2>
-    
-    <canvas id="vortexCanvas" width="800" height="450"></canvas>
+<h3>Laboratório de Termodinâmica: Gás Ideal</h3>
 
-    <div class="controls">
-        <div class="control-group">
-            <label>Ângulo de Ataque (α)</label>
-            <input type="range" id="angleSlider" min="0" max="25" value="12">
-            <span id="angleVal">12°</span>
-        </div>
-        <div class="control-group">
-            <label>Velocidade do Fluxo</label>
-            <input type="range" id="speedSlider" min="2" max="12" step="0.5" value="6">
-            <span id="speedVal">6.0</span>
-        </div>
+<div class="stats-container">
+    <div class="stat-box">
+        <span class="stat-label">TERMÔMETRO (T)</span>
+        <span id="tempDisp" class="stat-value">300 K</span>
     </div>
-
-    <div class="panel">
-        <strong>Física Aplicada:</strong> A simulação utiliza o modelo de <b>Vórtice de Rankine</b>. O ar no intradorso (baixo) contorna a ponta da asa em direção ao extradorso (cima), criando uma componente de velocidade vertical. 
-        <br><br>
-        $V_{\theta}(r) = \frac{\Gamma}{2\pi} \cdot \frac{r}{R^2}$ (dentro do núcleo) e $\frac{\Gamma}{2\pi r}$ (fora), onde $\Gamma \propto \sin(\alpha)$.
+    <div class="stat-box">
+        <span class="stat-label">PRESSURIZADOR (P)</span>
+        <span id="presDisp" class="stat-value">1.00 atm</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-label">VOLUME (V)</span>
+        <span id="volDisp" class="stat-value">100 L</span>
     </div>
 </div>
 
+<canvas id="canvas" width="700" height="400"></canvas>
+<div class="handle-hint">Arraste a <b>alça dourada</b> à direita para comprimir ou expandir o gás.</div>
+
+<div class="panel">
+    <div>
+        Nº Partículas: <span id="nval">50</span>
+        <input type="range" id="nslider" min="10" max="200" value="50">
+    </div>
+    <div>
+        Resfriar/Aquecer:
+        <input type="range" id="tslider" min="1" max="10" step="0.5" value="3">
+    </div>
+    <button id="reset">Resetar Simulação</button>
+</div>
+
 <script>
-const canvas = document.getElementById('vortexCanvas');
+const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-const angleSlider = document.getElementById('angleSlider');
-const speedSlider = document.getElementById('speedSlider');
-const angleVal = document.getElementById('angleVal');
-const speedVal = document.getElementById('speedVal');
 
+// estado inicial
 let particles = [];
-const numParticles = 180;
+let boxWidth = 500;
+let boxHeight = 350;
+let isDragging = false;
+let temperatureScale = 3;
+let pressure = 0;
+let impactAccumulator = 0;
+const handleWidth = 20;
 
-class Particle {
-    constructor() {
-        this.reset(true);
-    }
-
-    reset(fullReset) {
-        this.x = fullReset ? Math.random() * canvas.width : -20;
-        this.y = Math.random() * canvas.height;
-        this.history = [];
-        this.life = 0;
-        this.maxLife = 50 + Math.random() * 50;
-    }
-
-    update(angleDeg, flowSpeed) {
-        this.history.push({x: this.x, y: this.y});
-        if (this.history.length > 15) this.history.shift();
-
-        const wingX = 350;
-        const wingY = 225;
-        const wingTipX = wingX + 140; // Ponta da asa
-        
-        // Parâmetros do Vórtice
-        const angleRad = angleDeg * Math.PI / 180;
-        const strength = Math.sin(angleRad) * 450; 
-        const coreRadius = 20 + angleDeg * 0.5;
-
-        let dx = this.x - wingTipX;
-        let dy = this.y - wingY;
-        let distSq = dx*dx + dy*dy;
-        let dist = Math.sqrt(distSq);
-
-        let vx = flowSpeed;
-        let vy = 0;
-
-        // Efeito de Downwash e Vórtice atrás da asa
-        if (this.x > wingX - 50) {
-            if (dist < 300) {
-                // Modelo de Rankine modificado para decaimento em X
-                let decay = Math.max(0, 1 - (this.x - wingTipX) / 600);
-                let currentStrength = strength * decay;
-                
-                let velTheta;
-                if (dist < coreRadius) {
-                    velTheta = (currentStrength * dist) / (coreRadius * coreRadius);
-                } else {
-                    velTheta = currentStrength / dist;
-                }
-
-                // Vetores unitários tangenciais
-                vy += (dx / dist) * velTheta;
-                vx -= (dy / dist) * velTheta;
-            }
-        }
-
-        this.x += vx;
-        this.y += vy;
-        this.life++;
-
-        if (this.x > canvas.width + 20 || this.y < -50 || this.y > canvas.height + 50) {
-            this.reset(false);
-        }
-    }
-
-    draw() {
-        if (this.history.length < 2) return;
-        
-        ctx.beginPath();
-        // Cor baseada na posição Y (pressão/velocidade simulada)
-        let hue = 190 + (this.y - 225) * 0.1;
-        ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${0.3 + (this.x/canvas.width)*0.4})`;
-        ctx.lineWidth = 1.5;
-        
-        ctx.moveTo(this.history[0].x, this.history[0].y);
-        for(let i=1; i<this.history.length; i++) {
-            ctx.lineTo(this.history[i].x, this.history[i].y);
-        }
-        ctx.stroke();
+function createParticles(num) {
+    particles = [];
+    for(let i=0; i<num; i++) {
+        particles.push({
+            x: Math.random() * (boxWidth - 20) + 10,
+            y: Math.random() * (boxHeight - 20) + 10,
+            vx: (Math.random() - 0.5) * temperatureScale,
+            vy: (Math.random() - 0.5) * temperatureScale,
+            r: 4
+        });
     }
 }
 
-function init() {
-    for(let i=0; i<numParticles; i++) {
-        particles.push(new Particle());
-    }
+function update() {
+    // dissipação da pressão para leitura suave
+    impactAccumulator *= 0.95;
+
+    particles.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        // colisão paredes esquerda/direita
+        if (p.x - p.r < 0) {
+            p.x = p.r;
+            p.vx *= -1;
+            impactAccumulator += Math.abs(p.vx);
+        } else if (p.x + p.r > boxWidth) {
+            p.x = boxWidth - p.r;
+            p.vx *= -1;
+            impactAccumulator += Math.abs(p.vx);
+        }
+
+        // colisão paredes topo/fundo
+        if (p.y - p.r < 0) {
+            p.y = p.r;
+            p.vy *= -1;
+            impactAccumulator += Math.abs(p.vy);
+        } else if (p.y + p.r > boxHeight) {
+            p.y = boxHeight - p.r;
+            p.vy *= -1;
+            impactAccumulator += Math.abs(p.vy);
+        }
+    });
+
+    // cálculos físicos e interface
+    const volume = (boxWidth * boxHeight) / 1000;
+    const tempK = temperatureScale * 100;
+    pressure = (impactAccumulator / (boxWidth + boxHeight)) * 2;
+
+    document.getElementById('tempDisp').textContent = `${tempK.toFixed(0)} K`;
+    document.getElementById('presDisp').textContent = `${(pressure * 5).toFixed(2)} atm`;
+    document.getElementById('volDisp').textContent = `${volume.toFixed(0)} L`;
 }
 
-function drawAirfoil(angle) {
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    
+    const offsetX = (canvas.width - boxWidth) / 2;
+    const offsetY = (canvas.height - boxHeight) / 2;
+    
     ctx.save();
-    ctx.translate(350, 225);
-    ctx.rotate(-angle * Math.PI / 180);
-    
-    // Sombra projetada
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = 'black';
+    ctx.translate(offsetX, offsetY);
 
-    // Corpo da Asa (Formato NACA realístico)
-    ctx.beginPath();
-    ctx.moveTo(-100, 0); // Bordo de ataque
-    // Curva Superior (Extradorso)
-    ctx.bezierCurveTo(-100, -40, 20, -35, 140, 0);
-    // Curva Inferior (Intradorso)
-    ctx.bezierCurveTo(20, 25, -100, 20, -100, 0);
-    
-    let grad = ctx.createLinearGradient(-100, -20, -100, 20);
-    grad.addColorStop(0, '#bdc3c7');
-    grad.addColorStop(0.5, '#95a5a6');
-    grad.addColorStop(1, '#7f8c8d');
-    
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // desenho da caixa
+    ctx.strokeStyle = "#FFF";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, boxWidth, boxHeight);
 
-    // Detalhe do Bordo de Ataque
-    ctx.beginPath();
-    ctx.arc(-95, 0, 4, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.fill();
+    // desenho da maçaneta
+    ctx.fillStyle = "#F5C85C";
+    ctx.fillRect(boxWidth, boxHeight/2 - 30, handleWidth, 60);
+    ctx.fillStyle = "#333";
+    ctx.fillText("⟷", boxWidth + 4, boxHeight/2 + 5);
+
+    // desenho das partículas
+    particles.forEach(p => {
+        ctx.beginPath();
+        ctx.fillStyle = `hsl(${200 - (Math.abs(p.vx)+Math.abs(p.vy))*20}, 100%, 70%)`;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+    });
 
     ctx.restore();
 }
 
-function animate() {
-    // Efeito de persistência suave
-    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    let currentAngle = parseFloat(angleSlider.value);
-    let currentSpeed = parseFloat(speedSlider.value);
-    
-    angleVal.textContent = currentAngle + "°";
-    speedVal.textContent = currentSpeed.toFixed(1);
-
-    // Desenha partículas por baixo da asa
-    particles.forEach(p => {
-        p.update(currentAngle, currentSpeed);
-        p.draw();
-    });
-
-    drawAirfoil(currentAngle);
-    requestAnimationFrame(animate);
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
 }
 
-init();
-animate();
+// controles de entrada
+const nSlider = document.getElementById('nslider');
+nSlider.oninput = () => {
+    document.getElementById('nval').textContent = nSlider.value;
+    createParticles(parseInt(nSlider.value));
+};
 
+const tSlider = document.getElementById('tslider');
+tSlider.oninput = () => {
+    const oldScale = temperatureScale;
+    temperatureScale = parseFloat(tSlider.value);
+    particles.forEach(p => {
+        p.vx = (p.vx / oldScale) * temperatureScale;
+        p.vy = (p.vy / oldScale) * temperatureScale;
+    });
+};
+
+// interação com o mouse
+canvas.onmousedown = e => {
+    const r = canvas.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const offsetX = (canvas.width - boxWidth) / 2;
+    
+    if (x >= offsetX + boxWidth && x <= offsetX + boxWidth + handleWidth) {
+        isDragging = true;
+    }
+};
+
+window.onmousemove = e => {
+    if (isDragging) {
+        const r = canvas.getBoundingClientRect();
+        const x = e.clientX - r.left;
+        const offsetX = (canvas.width - boxWidth) / 2;
+        let newWidth = x - offsetX;
+        
+        if (newWidth > 150 && newWidth < 650) {
+            boxWidth = newWidth;
+        }
+    }
+};
+
+window.onmouseup = () => isDragging = false;
+
+document.getElementById('reset').onclick = () => {
+    boxWidth = 500;
+    temperatureScale = 3;
+    tSlider.value = 3;
+    createParticles(parseInt(nSlider.value));
+};
+
+createParticles(50);
+loop();
 </script>
+
+
+<div class="panel" style="max-width:700px; font-size:14px; background:#EBF481; display:block; padding:15px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.2); margin-bottom: 10px;">
+    <b style="display: block; margin-bottom: 5px;">Cálculo:</b>
+    <p style="margin: 0; line-height: 1.4;">
+        O simulador calcula a pressão monitorando a transferência de momento linear. Cada vez que uma partícula atinge uma parede, o valor da colisão é somado ao <b>acumulador de impacto</b>. A pressão exibida é a média desses impactos distribuída pela área (perímetro) da caixa em tempo real.
+    </p>
+</div>
+
+
+<div class="panel" style="max-width:700px; font-size:14px; background:#C6FF90; display:block; padding:15px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.2);">
+    <b style="display: block; margin-bottom: 8px; font-size: 16px;">Relações Observáveis:</b>
+    <ul style="margin: 0; padding-left: 20px; line-height: 1.6;">
+        <li><b>Lei de Boyle:</b> ao diminuir o volume (comprimir), a pressão aumenta.</li>
+        <li><b>Lei de Charles:</b> aumentar a temperatura faz as partículas colidirem com mais força, aumentando a pressão.</li>
+        <li><b>Teoria Cinética:</b> a pressão é o resultado macroscópico de bilhões de micro-colisões contra as paredes.</li>
+    </ul>
+</div>
+
+
+<div class="panel ref-panel" style="max-width:700px; font-size:14px; background:#F5C85C; display:block; padding:15px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.2); margin-top: 10px;">
+    <h4 style="margin-top: 0; margin-bottom: 10px;">Referências</h4>
+    <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">
+        <li>
+            PHET INTERACTIVE SIMULATIONS. 
+            <i>Propriedades dos Gases</i>. 
+            University of Colorado Boulder.
+            <br>
+            <a href="https://phet.colorado.edu/pt_BR/simulations/gas-properties" target="_blank" style="color: #000; font-weight: bold;">
+                https://phet.colorado.edu/pt_BR/simulations/gas-properties
+            </a>
+        </li>
+    </ul>
+</div>
+
+
 </body>
 </html>
